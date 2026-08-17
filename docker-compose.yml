@@ -1,0 +1,41 @@
+# Run from the PROJECT ROOT:
+#   docker compose up --build
+#
+# Dashboard will be available at http://localhost:5000
+
+services:
+  network-anomaly-detection:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: network-anomaly-detection:latest
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: "5000"
+      FLASK_DEBUG: "0"
+      # Must stay 1 -- training progress tracking uses in-process state that
+      # isn't shared across separate worker processes. See gunicorn_config.py.
+      GUNICORN_WORKERS: "1"
+      GUNICORN_THREADS: "4"
+      LOG_LEVEL: "INFO"
+    volumes:
+      # Persist trained model artifacts, plots, and logs across container
+      # restarts/rebuilds instead of baking a single training run into the
+      # image forever.
+      - ./backend/app/ml_model_pipeline/model_artifacts:/app/backend/app/ml_model_pipeline/model_artifacts
+      - ./backend/app/ml_model_pipeline/plots:/app/backend/app/ml_model_pipeline/plots
+      - ./logs:/app/logs
+    restart: unless-stopped
+    # Defined here (not just as the Dockerfile's HEALTHCHECK instruction)
+    # because podman's default OCI build format doesn't support baking
+    # HEALTHCHECK into the image -- but a compose-level healthcheck is
+    # applied at container-run time (podman/docker run --health-cmd under
+    # the hood), so it works identically under `docker compose` and
+    # `podman-compose` regardless of build format.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,os; urllib.request.urlopen(f'http://127.0.0.1:{os.environ.get(\"PORT\",\"5000\")}/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3

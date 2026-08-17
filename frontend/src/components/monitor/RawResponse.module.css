@@ -1,0 +1,12 @@
+.pre {
+  font-family: var(--mono);
+  font-size: .72rem;
+  line-height: 1.7;
+  color: var(--text2);
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  max-height: 280px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

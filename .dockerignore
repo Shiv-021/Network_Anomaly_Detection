@@ -1,0 +1,26 @@
+# Keep the Docker build context (and image) small — mirrors .gitattributes/.gitignore intent.
+.git
+.gitattributes
+.nad_server.pid
+
+# Frontend — node_modules is huge and gets rebuilt in stage 1; dist is
+# regenerated fresh by the frontend-build stage and copied in afterward.
+frontend/node_modules
+frontend/dist
+
+# Python
+**/__pycache__
+**/*.pyc
+.venv
+venv
+
+# Logs (mounted as a volume in docker-compose.yml, not baked into the image)
+logs/*.log
+
+# Case study deliverables aren't needed inside the running app image
+notebooks
+blog
+
+# Editor / OS cruft
+.vscode
+.DS_Store

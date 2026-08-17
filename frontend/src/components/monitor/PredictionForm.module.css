@@ -1,0 +1,149 @@
+.section { margin-bottom: .85rem; }
+.section:last-child { margin-bottom: 0; }
+.label {
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text3);
+  margin-bottom: .4rem;
+}
+
+/* ── Group tabs ─────────────────────────────────────────────────── */
+.tabBar {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+  margin-bottom: .65rem;
+}
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .32rem .75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text2);
+  font-size: .74rem;
+  font-weight: 500;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.tabBtn:hover { border-color: rgba(59,130,246,.5); color: var(--text); }
+.tabActive {
+  border-color: var(--accent) !important;
+  background: rgba(59,130,246,.12) !important;
+  color: #93c5fd !important;
+}
+.tabCount {
+  font-size: .62rem;
+  padding: .1rem .38rem;
+  border-radius: 999px;
+  background: rgba(59,130,246,.18);
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.epGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .4rem;
+}
+.epBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: .55rem .75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: border-color .2s;
+  font-family: var(--sans);
+  text-align: left;
+  gap: .15rem;
+}
+.epBtn:hover { border-color: var(--accent); }
+.epActive { border-color: var(--accent) !important; background: rgba(59,130,246,.1) !important; }
+.epLabel { font-size: .78rem; font-weight: 600; color: var(--text); }
+.epDesc  { font-size: .67rem; color: var(--text3); }
+
+.sampleWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+}
+.sampleBtn {
+  font-size: .7rem;
+  font-weight: 500;
+  padding: .22rem .6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--sc) 40%, transparent);
+  background: color-mix(in srgb, var(--sc) 10%, transparent);
+  color: var(--sc);
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: background .15s;
+}
+.sampleBtn:hover { background: color-mix(in srgb, var(--sc) 20%, transparent); }
+
+.textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: .75rem;
+  line-height: 1.6;
+  padding: .7rem .85rem;
+  resize: vertical;
+  outline: none;
+  transition: border-color .2s;
+}
+.textarea:focus { border-color: var(--accent); }
+
+.error {
+  padding: .55rem .75rem;
+  background: rgba(239,68,68,.1);
+  border: 1px solid rgba(239,68,68,.25);
+  border-radius: var(--r-sm);
+  color: #fca5a5;
+  font-size: .78rem;
+  margin-bottom: .75rem;
+}
+
+/* ── Field grid ─────────────────────────────────────────────────── */
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .35rem .65rem;
+}
+.fieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: .14rem;
+}
+.fieldLabel {
+  font-size: .66rem;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fieldInput {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: .74rem;
+  padding: .26rem .42rem;
+  outline: none;
+  width: 100%;
+  transition: border-color .15s;
+}
+.fieldInput:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59,130,246,.12); }
+select.fieldInput { cursor: pointer; }

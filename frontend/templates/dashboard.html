@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network Anomaly Detection — Live Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#050a14;--surface:#0d1526;--surface2:#121d30;--border:#1e3a5f;--border2:#243858;--accent:#3b82f6;--accent2:#6366f1;--success:#10b981;--danger:#ef4444;--warn:#f59e0b;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--mono:'JetBrains Mono',monospace;--sans:'Inter',system-ui,sans-serif;--r:12px;--r-sm:8px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 20% 10%,rgba(59,130,246,.07) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 80% 80%,rgba(99,102,241,.06) 0%,transparent 60%);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:0 1.5rem 4rem}
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:1.2rem 0;border-bottom:1px solid var(--border);margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem}
+.brand{display:flex;align-items:center;gap:.75rem}
+.brand-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 0 16px rgba(59,130,246,.4);animation:pulse-icon 3s ease-in-out infinite}
+@keyframes pulse-icon{0%,100%{box-shadow:0 0 16px rgba(59,130,246,.4)}50%{box-shadow:0 0 28px rgba(59,130,246,.7)}}
+.brand-title{font-size:1.05rem;font-weight:700}
+.brand-sub{font-size:.74rem;color:var(--text2)}
+.health-pill{display:flex;align-items:center;gap:.5rem;padding:.35rem .85rem;border-radius:999px;font-size:.78rem;font-weight:500;border:1px solid var(--border);background:var(--surface);transition:all .3s}
+.health-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.health-pill.ok{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06)}
+.health-pill.ok .health-dot{background:var(--success);box-shadow:0 0 6px var(--success)}
+.health-pill.err .health-dot{background:var(--danger)}
+/* LIVE STATS BAR */
+.live-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem;margin-bottom:1.5rem}
+@media(max-width:900px){.live-bar{grid-template-columns:repeat(2,1fr)}}
+.ls-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.2rem;position:relative;overflow:hidden;transition:border-color .25s}
+.ls-card:hover{border-color:var(--accent)}
+.ls-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0;transition:opacity .3s}
+.ls-card:hover::before{opacity:1}
+.ls-label{font-size:.68rem;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.ls-value{font-size:1.55rem;font-weight:700;margin-top:.25rem;line-height:1}
+.ls-sub{font-size:.7rem;color:var(--text2);margin-top:.2rem}
+.ls-icon{position:absolute;right:1rem;top:50%;transform:translateY(-50%);font-size:1.5rem;opacity:.12}
+.ls-value.anomaly{color:var(--danger)}
+.ls-value.normalc{color:var(--success)}
+.live-dot{display:inline-block;width:7px;height:7px;background:var(--danger);border-radius:50%;animation:blink 1s ease-in-out infinite;margin-right:.35rem;box-shadow:0 0 6px var(--danger)}
+.live-dot.off{background:var(--text3);box-shadow:none;animation:none}
+/* MAIN GRID */
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
+@media(max-width:1050px){.main-grid{grid-template-columns:1fr}}
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.3rem;border-bottom:1px solid var(--border);background:var(--surface2)}
+.card-title{font-size:.84rem;font-weight:600;display:flex;align-items:center;gap:.5rem}
+.card-body{padding:1.3rem}
+/* FORM */
+label{display:block;font-size:.72rem;font-weight:500;color:var(--text2);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.05em}
+select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:var(--r-sm);padding:.5rem .85rem;font-size:.84rem;font-family:var(--sans);cursor:pointer;outline:none;transition:border-color .2s;margin-bottom:.9rem}
+select:focus{border-color:var(--accent)}
+.sample-row{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.9rem}
+.sample-btn{font-size:.72rem;font-weight:500;padding:.28rem .65rem;border-radius:999px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .2s;font-family:var(--sans)}
+.sample-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.07)}
+textarea#payload{width:100%;min-height:250px;font-family:var(--mono);font-size:.78rem;line-height:1.6;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:var(--r-sm);padding:.8rem .95rem;resize:vertical;outline:none;transition:border-color .2s;margin-bottom:.9rem}
+textarea#payload:focus{border-color:var(--accent)}
+.btn-primary{width:100%;padding:.7rem 1.4rem;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--r-sm);color:#fff;font-size:.9rem;font-weight:600;font-family:var(--sans);cursor:pointer;position:relative;overflow:hidden;transition:opacity .2s,transform .15s,box-shadow .2s;box-shadow:0 4px 20px rgba(59,130,246,.3)}
+.btn-primary:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 6px 28px rgba(59,130,246,.45)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-primary.loading::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.15) 50%,transparent 100%);animation:shimmer 1.2s ease-in-out infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+/* VERDICT */
+.verdict{border-radius:var(--r);padding:1.3rem;display:none;animation:fadeIn .35s ease both;margin-bottom:1.2rem;border:1px solid var(--border)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.verdict.anomaly{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.3);box-shadow:0 0 30px rgba(239,68,68,.2)}
+.verdict.normal{background:rgba(16,185,129,.06);border-color:rgba(16,185,129,.3);box-shadow:0 0 30px rgba(16,185,129,.15)}
+.verdict-row{display:flex;align-items:center;gap:1rem;margin-bottom:.9rem}
+.verdict-emoji{font-size:2.4rem}
+.verdict-label{font-size:1.25rem;font-weight:700}
+.verdict-meta{font-size:.8rem;color:var(--text2);margin-top:.12rem}
+.detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-top:.75rem}
+@media(max-width:700px){.detail-grid{grid-template-columns:1fr 1fr}}
+.detail-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.6rem .8rem}
+.detail-key{font-size:.68rem;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.detail-val{font-size:.86rem;font-weight:600;margin-top:.12rem;word-break:break-all}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;margin:.4rem 0 .8rem}
+.gauge-canvas{width:160px;height:88px}
+.gauge-label{font-size:.73rem;color:var(--text2)}
+.gauge-value{font-size:1.5rem;font-weight:700}
+/* LIVE MONITOR */
+.live-toggle-btn{font-size:.78rem;font-weight:600;padding:.32rem .85rem;border-radius:999px;border:none;cursor:pointer;font-family:var(--sans);transition:all .2s}
+.live-toggle-btn.start{background:rgba(16,185,129,.15);color:var(--success);border:1px solid rgba(16,185,129,.35)}
+.live-toggle-btn.start:hover{background:rgba(16,185,129,.25)}
+.live-toggle-btn.stop{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.35)}
+.live-toggle-btn.stop:hover{background:rgba(239,68,68,.25)}
+.rate-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem}
+.rate-chip{font-size:.74rem;font-weight:500;padding:.25rem .65rem;border-radius:999px;background:var(--surface2);border:1px solid var(--border)}
+.timeline-wrap{position:relative;height:160px;margin-bottom:.85rem}
+.feed-title{font-size:.7rem;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.45rem}
+.live-feed{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:.3rem}
+.feed-item{display:flex;align-items:center;gap:.6rem;padding:.45rem .65rem;border-radius:var(--r-sm);background:var(--surface2);border:1px solid var(--border);font-size:.76rem;animation:fadeIn .25s ease both}
+.feed-item.anomaly{border-left:3px solid var(--danger)}
+.feed-item.normal{border-left:3px solid var(--success)}
+.feed-badge{font-size:.68rem;font-weight:600;padding:.14rem .45rem;border-radius:999px;white-space:nowrap}
+.feed-badge.anomaly{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+.feed-badge.normal{background:rgba(16,185,129,.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.25)}
+.feed-prob{font-family:var(--mono);font-size:.72rem;color:var(--text2);margin-left:auto;white-space:nowrap}
+.feed-time{font-size:.68rem;color:var(--text3);white-space:nowrap}
+/* BOTTOM GRID */
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
+@media(max-width:1100px){.bottom-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.bottom-grid{grid-template-columns:1fr}}
+.chart-wrap{position:relative;height:180px}
+.info-list{list-style:none}
+.info-list li{display:flex;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.78rem;gap:.5rem}
+.info-list li:last-child{border-bottom:none}
+.info-key{color:var(--text2);flex-shrink:0}
+.info-val{font-weight:500;font-family:var(--mono);font-size:.74rem;text-align:right;word-break:break-all}
+.tag-wrap{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.45rem}
+.tag{font-size:.66rem;font-weight:500;padding:.16rem .5rem;border-radius:999px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);color:#93c5fd}
+pre#raw-output{background:var(--bg);border:1px solid var(--border2);border-radius:var(--r-sm);padding:.85rem .95rem;font-family:var(--mono);font-size:.73rem;line-height:1.6;color:#a5b4fc;overflow:auto;max-height:240px;white-space:pre-wrap;word-break:break-word}
+.threshold-item{margin-bottom:.9rem}
+.threshold-row{display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:.28rem}
+.threshold-bar-bg{height:5px;background:var(--surface2);border-radius:99px;overflow:hidden}
+.threshold-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .8s cubic-bezier(.4,0,.2,1)}
+/* HISTORY */
+.history-wrap{overflow-x:auto}
+table.history{width:100%;border-collapse:collapse;font-size:.77rem}
+table.history th{text-align:left;padding:.48rem .7rem;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
+table.history td{padding:.52rem .7rem;border-bottom:1px solid rgba(30,58,95,.5);vertical-align:middle}
+table.history tr:last-child td{border-bottom:none}
+table.history tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-flex;align-items:center;padding:.16rem .5rem;border-radius:999px;font-size:.68rem;font-weight:600;white-space:nowrap}
+.badge.anomaly{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+.badge.normal{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.25);color:#6ee7b7}
+.badge.warn{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);color:#fcd34d}
+.empty-state{text-align:center;padding:1.75rem;color:var(--text3);font-size:.8rem}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+#toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.65rem 1rem;font-size:.8rem;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+#toast.show{opacity:1;transform:translateY(0)}
+/* MODEL COMPARISON TABLE */
+.cmp-table{width:100%;border-collapse:collapse;font-size:.73rem;margin-top:.5rem}
+.cmp-table th{text-align:left;padding:.35rem .5rem;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
+.cmp-table td{padding:.38rem .5rem;border-bottom:1px solid rgba(30,58,95,.4);font-family:var(--mono);font-size:.71rem}
+.cmp-table tr.best-row td{background:rgba(16,185,129,.07);color:#6ee7b7}
+.cmp-table tr.best-row td:first-child{font-weight:600}
+.cmp-section{margin-top:.9rem}
+.cmp-label{font-size:.68rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.3rem;display:flex;align-items:center;gap:.4rem}
+.best-badge{font-size:.62rem;padding:.1rem .4rem;border-radius:999px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#6ee7b7}
+/* PLOTS GALLERY */
+.plot-tabs{display:flex;gap:.35rem;flex-wrap:wrap}
+.plot-tab{font-size:.72rem;font-weight:500;padding:.28rem .7rem;border-radius:999px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .2s;font-family:var(--sans)}
+.plot-tab:hover{border-color:var(--accent);color:var(--accent)}
+.plot-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.plot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.85rem;margin-top:.9rem}
+.plot-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s}
+.plot-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.plot-card img{width:100%;height:150px;object-fit:cover;display:block;background:var(--bg)}
+.plot-label{font-size:.73rem;font-weight:500;padding:.4rem .6rem .1rem;color:var(--text)}
+.plot-cat-tag{font-size:.63rem;padding:.15rem .5rem .4rem;color:var(--text3)}
+/* LIGHTBOX */
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:.75rem}
+#lightbox.open{display:flex}
+#lightbox img{max-width:90vw;max-height:80vh;border-radius:var(--r-sm);box-shadow:0 20px 60px rgba(0,0,0,.7)}
+#lightbox-title{color:var(--text);font-size:.9rem;font-weight:500}
+#lightbox-close{position:absolute;top:1rem;right:1.2rem;font-size:1.6rem;cursor:pointer;color:var(--text2);background:none;border:none;line-height:1}
+#lightbox-close:hover{color:var(--text)}
+/* PAGE TABS */
+.page-tabs{display:flex;gap:.25rem;padding:.75rem 0 0;margin-bottom:1.5rem;border-bottom:1px solid var(--border)}
+.page-tab{padding:.55rem 1.3rem;font-size:.85rem;font-weight:600;border:none;background:transparent;color:var(--text2);cursor:pointer;border-radius:8px 8px 0 0;font-family:var(--sans);position:relative;bottom:-1px;border:1px solid transparent;transition:all .2s}
+.page-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.page-tab.active{color:var(--text);background:var(--surface);border-color:var(--border);border-bottom-color:var(--surface)}
+.page-tab .tab-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:.45rem;vertical-align:middle}
+/* TRAIN SECTION */
+.train-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
+@media(max-width:900px){.train-grid{grid-template-columns:1fr}}
+.drop-zone{border:2px dashed var(--border);border-radius:var(--r);padding:2rem;text-align:center;transition:border-color .2s,background .2s;cursor:pointer}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(59,130,246,.04)}
+.drop-zone-icon{font-size:2.2rem;margin-bottom:.5rem}
+.drop-zone-label{font-size:.84rem;color:var(--text2);margin-bottom:.35rem}
+.drop-zone-sub{font-size:.72rem;color:var(--text3)}
+.data-pill{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem .8rem;border-radius:999px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;font-size:.76rem;margin-top:.65rem}
+.step-row{display:flex;align-items:center;gap:.75rem;padding:.55rem 0;border-bottom:1px solid var(--border)}
+.step-row:last-child{border-bottom:none}
+.step-num{width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);font-size:.72rem;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text2)}
+.step-num.done{background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.4);color:#6ee7b7}
+.step-num.active{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.4);color:#93c5fd;animation:pulse-step .8s ease-in-out infinite}
+@keyframes pulse-step{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.4)}50%{box-shadow:0 0 0 5px rgba(59,130,246,0)}}
+.step-num.err{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5}
+.step-info{flex:1}
+.step-name{font-size:.8rem;font-weight:500}
+.step-desc{font-size:.7rem;color:var(--text3);margin-top:.1rem}
+.step-status{font-size:.7rem;font-weight:500;white-space:nowrap}
+.step-status.done{color:var(--success)}
+.step-status.active{color:var(--accent)}
+.step-status.err{color:var(--danger)}
+#train-log{width:100%;min-height:300px;max-height:500px;overflow-y:auto;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r-sm);padding:.8rem .95rem;font-family:var(--mono);font-size:.73rem;line-height:1.65;color:#a5b4fc;white-space:pre-wrap;word-break:break-word;scroll-behavior:smooth}
+.log-line.err{color:#fca5a5}
+.log-line.warn{color:#fcd34d}
+.log-line.ok{color:#6ee7b7}
+.log-line.header{color:#93c5fd;font-weight:600}
+.log-line.server{color:var(--text3);font-style:italic}
+.btn-train{padding:.75rem 2rem;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:var(--r-sm);color:#fff;font-size:.95rem;font-weight:700;font-family:var(--sans);cursor:pointer;transition:opacity .2s,transform .15s,box-shadow .2s;box-shadow:0 4px 20px rgba(16,185,129,.35)}
+.btn-train:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 6px 28px rgba(16,185,129,.5)}
+.btn-train:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-secondary{padding:.52rem 1.1rem;background:transparent;border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text2);font-size:.8rem;font-weight:500;font-family:var(--sans);cursor:pointer;transition:all .2s}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.opt-row{display:flex;align-items:center;gap:.6rem;padding:.4rem 0}
+.opt-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.opt-label{font-size:.8rem;color:var(--text)}
+.opt-sub{font-size:.7rem;color:var(--text3);margin-left:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">&#128737;</div>
+    <div>
+      <div class="brand-title">Network Anomaly Detection</div>
+      <div class="brand-sub">XGBoost &middot; PCA Reconstruction &middot; NSL-KDD &middot; Real-Time Monitor</div>
+    </div>
+  </div>
+  <div id="health-pill" class="health-pill">
+    <div class="health-dot"></div>
+    <span id="health-text">Connecting&hellip;</span>
+  </div>
+</div>
+
+<!-- PAGE TABS -->
+<div class="page-tabs">
+  <button class="page-tab active" onclick="switchTab('monitor')" id="tab-monitor">
+    <span class="tab-dot" style="background:var(--success)"></span>Monitor &amp; Test
+  </button>
+  <button class="page-tab" onclick="switchTab('train')" id="tab-train">
+    <span class="tab-dot" style="background:var(--warn)"></span>Train Pipeline
+  </button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     TRAIN SECTION
+════════════════════════════════════════════════════════════ -->
+<div id="train-section" style="display:none">
+
+<div class="train-grid">
+  <!-- LEFT: Data source -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">&#128190; Step 1 &mdash; Data Source</div></div>
+    <div class="card-body">
+      <!-- Upload drop zone -->
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event)">
+        <div class="drop-zone-icon">&#128194;</div>
+        <div class="drop-zone-label">Drag &amp; drop a CSV file here</div>
+        <div class="drop-zone-sub">or click to browse &mdash; max 200 MB</div>
+      </div>
+      <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="uploadFile(this.files[0])">
+
+      <div style="text-align:center;margin:.7rem 0;font-size:.75rem;color:var(--text3)">or</div>
+
+      <button class="btn-secondary" style="width:100%" onclick="useLocalData()" id="use-local-btn">
+        &#128197; Use local Network_anomaly_data.csv
+      </button>
+
+      <div id="data-selected" style="display:none;text-align:center;margin-top:.65rem">
+        <div class="data-pill">&#9989; <span id="data-name"></span> &mdash; <span id="data-mb"></span> MB</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Options + progress -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">&#9881; Step 2 &mdash; Options &amp; Progress</div></div>
+    <div class="card-body">
+      <div class="opt-row">
+        <input type="checkbox" id="opt-no-plots">
+        <span class="opt-label">Skip plots (faster)</span>
+        <span class="opt-sub">~15 min vs ~35 min</span>
+      </div>
+      <div style="height:.75rem"></div>
+      <!-- Steps -->
+      <div id="step-block1" class="step-row">
+        <div class="step-num" id="sn1">1</div>
+        <div class="step-info">
+          <div class="step-name">Data Load</div>
+          <div class="step-desc">Load CSV, validate schema</div>
+        </div>
+        <div class="step-status" id="ss1">&mdash;</div>
+      </div>
+      <div class="step-row">
+        <div class="step-num" id="sn2">2a</div>
+        <div class="step-info">
+          <div class="step-name">EDA</div>
+          <div class="step-desc">10 analysis steps, hypothesis tests, plots</div>
+        </div>
+        <div class="step-status" id="ss2">&mdash;</div>
+      </div>
+      <div class="step-row">
+        <div class="step-num" id="sn3">2b</div>
+        <div class="step-info">
+          <div class="step-name">Feature Engineering</div>
+          <div class="step-desc">Engineer features, VIF, select columns</div>
+        </div>
+        <div class="step-status" id="ss3">&mdash;</div>
+      </div>
+      <div class="step-row">
+        <div class="step-num" id="sn4">3</div>
+        <div class="step-info">
+          <div class="step-name">ML Training</div>
+          <div class="step-desc">Binary + multiclass + unsupervised, save artifacts</div>
+        </div>
+        <div class="step-status" id="ss4">&mdash;</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Start button + log -->
+<div class="card" style="margin-bottom:1.2rem">
+  <div class="card-header">
+    <div class="card-title">&#9881; Step 3 &mdash; Run Training</div>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <button class="btn-secondary" onclick="clearTrainLog()" id="clear-log-btn" style="display:none">Clear log</button>
+      <button class="btn-secondary" onclick="resetTrainState()" id="reset-btn" style="display:none">Reset</button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+      <button class="btn-train" id="start-train-btn" onclick="startTraining()" disabled>&#9654; Start Training</button>
+      <div id="train-status-pill" style="font-size:.78rem;color:var(--text3)">Select data to begin</div>
+    </div>
+    <div id="train-log">(log will appear here)</div>
+  </div>
+</div>
+
+<!-- Results (shown after training completes) -->
+<div id="train-results" style="display:none">
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="card-header"><div class="card-title">&#127942; Training Results &mdash; Model Comparison</div></div>
+    <div class="card-body" style="padding:.7rem 1.3rem">
+      <div id="tr-binary-comparison" class="cmp-section" style="display:none">
+        <div class="cmp-label">&#128200; Binary Models <span class="best-badge" id="tr-best-binary-badge"></span></div>
+        <table class="cmp-table" id="tr-binary-cmp-table"><tbody></tbody></table>
+      </div>
+      <div id="tr-multiclass-comparison" class="cmp-section" style="display:none">
+        <div class="cmp-label">&#127919; Multiclass Models <span class="best-badge" id="tr-best-multi-badge"></span></div>
+        <table class="cmp-table" id="tr-multi-cmp-table"><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="card-header">
+      <div class="card-title">&#128444; Training Plots</div>
+      <div class="plot-tabs" id="tr-plot-tabs">
+        <button class="plot-tab active" onclick="filterTrainPlots('all')">All</button>
+        <button class="plot-tab" onclick="filterTrainPlots('EDA')">EDA</button>
+        <button class="plot-tab" onclick="filterTrainPlots('Feature Engineering')">Features</button>
+        <button class="plot-tab" onclick="filterTrainPlots('Training')">Training</button>
+        <button class="plot-tab" onclick="filterTrainPlots('Unsupervised')">Unsupervised</button>
+      </div>
+    </div>
+    <div class="card-body" id="tr-plots-body">
+      <div class="empty-state">Plots will appear here after training completes.</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end #train-section -->
+
+<!-- ════════════════════════════════════════════════════════════
+     MONITOR SECTION (existing content)
+════════════════════════════════════════════════════════════ -->
+<div id="monitor-section">
+<div class="live-bar">
+  <div class="ls-card">
+    <div class="ls-label"><span class="live-dot off" id="live-dot"></span>Live Status</div>
+    <div class="ls-value" id="ls-status" style="font-size:1rem;margin-top:.3rem">Idle</div>
+    <div class="ls-sub" id="ls-uptime">Server uptime: &mdash;</div>
+    <div class="ls-icon">&#128225;</div>
+  </div>
+  <div class="ls-card">
+    <div class="ls-label">Total Predictions</div>
+    <div class="ls-value" id="ls-total">0</div>
+    <div class="ls-sub">since server start</div>
+    <div class="ls-icon">&#128290;</div>
+  </div>
+  <div class="ls-card">
+    <div class="ls-label">Anomalies Detected</div>
+    <div class="ls-value anomaly" id="ls-anomalies">0</div>
+    <div class="ls-sub" id="ls-anomaly-pct">0% of total</div>
+    <div class="ls-icon">&#128680;</div>
+  </div>
+  <div class="ls-card">
+    <div class="ls-label">Normal Traffic</div>
+    <div class="ls-value normalc" id="ls-normal">0</div>
+    <div class="ls-sub" id="ls-normal-pct">0% of total</div>
+    <div class="ls-icon">&#9989;</div>
+  </div>
+  <div class="ls-card">
+    <div class="ls-label">Per Minute</div>
+    <div class="ls-value" id="ls-rate">0</div>
+    <div class="ls-sub">predictions / min</div>
+    <div class="ls-icon">&#9889;</div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main-grid">
+
+  <!-- LEFT: Prediction Form -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#128225; Connection Record</div>
+      <div style="font-size:.72rem;color:var(--text3)">NSL-KDD raw fields</div>
+    </div>
+    <div class="card-body">
+      <label for="endpoint">Analysis Mode</label>
+      <select id="endpoint">
+        <option value="/predict/full">Full Analysis &mdash; binary + attack type + reconstruction</option>
+        <option value="/predict">Binary &mdash; anomaly yes / no</option>
+        <option value="/predict/attack-type">Attack Type &mdash; multi-class classification</option>
+        <option value="/predict/reconstruction">PCA Reconstruction &mdash; unsupervised anomaly score</option>
+      </select>
+      <label>Quick samples</label>
+      <div class="sample-row">
+        <button class="sample-btn" onclick="loadSample('normal')">&#9989; Normal HTTP</button>
+        <button class="sample-btn" onclick="loadSample('neptune')">&#127754; Neptune DoS</button>
+        <button class="sample-btn" onclick="loadSample('smurf')">&#128568; Smurf DoS</button>
+        <button class="sample-btn" onclick="loadSample('teardrop')">&#128166; Teardrop DoS</button>
+        <button class="sample-btn" onclick="loadSample('buffer')">&#128165; Buffer Overflow</button>
+        <button class="sample-btn" onclick="loadSample('ipsweep')">&#128301; IP Sweep</button>
+        <button class="sample-btn" onclick="loadSample('nmap')">&#128202; Nmap Probe</button>
+        <button class="sample-btn" onclick="loadSample('satan')">&#129300; Satan Probe</button>
+        <button class="sample-btn" onclick="loadSample('portscan')">&#128269; Port Scan</button>
+        <button class="sample-btn" onclick="loadSample('guesspasswd')">&#128274; Guess Passwd</button>
+        <button class="sample-btn" onclick="loadSample('warezclient')">&#128230; Warezlient</button>
+      </div>
+      <label for="payload">Connection Record</label>
+      <textarea id="payload" spellcheck="false">{
+  "duration": 0, "protocoltype": "tcp", "service": "http", "flag": "SF",
+  "srcbytes": 232, "dstbytes": 8153, "land": 0, "wrongfragment": 0, "urgent": 0,
+  "hot": 0, "numfailedlogins": 0, "loggedin": 1, "numcompromised": 0, "rootshell": 0,
+  "suattempted": 0, "numroot": 0, "numfilecreations": 0, "numshells": 0,
+  "numaccessfiles": 0, "ishostlogin": 0, "isguestlogin": 0, "count": 5, "srvcount": 5,
+  "serrorrate": 0.2, "srvserrorrate": 0.2, "rerrorrate": 0, "srvrerrorrate": 0,
+  "samesrvrate": 1.0, "diffsrvrate": 0, "srvdiffhostrate": 0, "dsthostcount": 30,
+  "dsthostsrvcount": 255, "dsthostsamesrvrate": 1.0, "dsthostdiffsrvrate": 0,
+  "dsthostsamesrcportrate": 0.03, "dsthostsrvdiffhostrate": 0.04,
+  "dsthostserrorrate": 0.03, "dsthostsrvserrorrate": 0.01, "dsthostrerrorrate": 0,
+  "dsthostsrvrerrorrate": 0.01
+}</textarea>
+      <button id="run-btn" class="btn-primary" onclick="runPredict()">
+        &#9889; Analyse Connection
+      </button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Live Monitor -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#128308; Live Monitor</div>
+      <button id="live-btn" class="live-toggle-btn start" onclick="toggleLive()">&#9654; Start Simulation</button>
+    </div>
+    <div class="card-body">
+      <div class="rate-row">
+        <div style="font-size:.77rem;color:var(--text2)">Probability Timeline &mdash; last 30 predictions</div>
+        <div class="rate-chip" id="rate-chip">0 req/s</div>
+      </div>
+      <div class="timeline-wrap">
+        <canvas id="timeline-chart"></canvas>
+      </div>
+      <div class="feed-title">Activity Feed</div>
+      <div class="live-feed" id="live-feed">
+        <div class="empty-state" style="padding:.75rem;font-size:.78rem">No predictions yet &mdash; run one manually or start simulation.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VERDICT (shown after manual prediction) -->
+<div class="verdict" id="verdict">
+  <div class="verdict-row">
+    <div class="verdict-emoji" id="verdict-emoji">&#128269;</div>
+    <div>
+      <div class="verdict-label" id="verdict-label">&mdash;</div>
+      <div class="verdict-meta"  id="verdict-meta">&mdash;</div>
+    </div>
+    <div class="gauge-wrap" style="margin:0 0 0 auto">
+      <canvas class="gauge-canvas" id="gauge-canvas"></canvas>
+      <div class="gauge-value" id="gauge-value">&mdash;</div>
+      <div class="gauge-label">Anomaly Prob</div>
+    </div>
+  </div>
+  <div class="detail-grid" id="detail-grid"></div>
+</div>
+
+<!-- BOTTOM GRID -->
+<div class="bottom-grid">
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">&#127919; Attack Type Probabilities</div></div>
+    <div class="card-body" style="padding:.9rem 1.3rem 1.3rem">
+      <div class="chart-wrap"><canvas id="attack-chart"></canvas></div>
+      <div id="attack-placeholder" class="empty-state">Run a prediction to see attack class breakdown.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">&#129504; Model Info</div></div>
+    <div class="card-body" style="padding:.7rem 1.3rem">
+      <ul class="info-list" id="model-info-list">
+        <li><span class="info-key">Status</span><span class="info-val" id="mi-status">Loading&hellip;</span></li>
+      </ul>
+      <div id="attack-tags" class="tag-wrap"></div>
+      <div id="binary-comparison" class="cmp-section" style="display:none">
+        <div class="cmp-label">&#128200; Binary Models <span class="best-badge" id="best-binary-badge"></span></div>
+        <table class="cmp-table" id="binary-cmp-table"><tbody></tbody></table>
+      </div>
+      <div id="multiclass-comparison" class="cmp-section" style="display:none">
+        <div class="cmp-label">&#127919; Multiclass Models <span class="best-badge" id="best-multi-badge"></span></div>
+        <table class="cmp-table" id="multi-cmp-table"><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:1.2rem">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">&#128203; Raw Response</div>
+        <button onclick="copyRaw()" style="font-size:.7rem;background:transparent;border:1px solid var(--border2);border-radius:5px;padding:.18rem .5rem;color:var(--text2);cursor:pointer">Copy</button>
+      </div>
+      <div class="card-body" style="padding:.8rem"><pre id="raw-output">(no prediction yet)</pre></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">&#9878; Decision Thresholds</div></div>
+      <div class="card-body" id="threshold-body"><div class="empty-state">Loading&hellip;</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY TABLE -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">&#128202; Prediction History (this session)</div>
+    <button onclick="clearHistory()" style="font-size:.7rem;background:transparent;border:1px solid var(--border2);border-radius:5px;padding:.18rem .5rem;color:var(--text2);cursor:pointer">Clear</button>
+  </div>
+  <div class="card-body" style="padding:.7rem 1.1rem">
+    <div class="history-wrap">
+      <table class="history" id="history-table">
+        <thead><tr><th>#</th><th>Endpoint</th><th>Source</th><th>Result</th><th>Probability</th><th>Attack Type</th><th>Recon Error</th><th>Time</th></tr></thead>
+        <tbody id="history-body"><tr><td colspan="8"><div class="empty-state">No predictions yet.</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TRAINING PLOTS -->
+<div class="card" style="margin-bottom:1.2rem">
+  <div class="card-header">
+    <div class="card-title">&#128444; Training Plots</div>
+    <div class="plot-tabs" id="plot-tabs">
+      <button class="plot-tab active" onclick="filterPlots('all')">All</button>
+      <button class="plot-tab" onclick="filterPlots('EDA')">EDA</button>
+      <button class="plot-tab" onclick="filterPlots('Feature Engineering')">Features</button>
+      <button class="plot-tab" onclick="filterPlots('Training')">Training</button>
+      <button class="plot-tab" onclick="filterPlots('Unsupervised')">Unsupervised</button>
+    </div>
+  </div>
+  <div class="card-body" id="plots-body">
+    <div class="empty-state">Loading plots&hellip;</div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox">
+  <button id="lightbox-close" onclick="closeLightbox()">&#10005;</button>
+  <img id="lightbox-img" src="" alt="">
+  <div id="lightbox-title"></div>
+</div>
+
+</div><!-- end #monitor-section -->
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// SAMPLE RECORDS
+// ============================================================
+const SAMPLES = {
+  // ── Normal ────────────────────────────────────────────────────────────────
+  normal:      {"duration":0,"protocoltype":"tcp","service":"http","flag":"SF","srcbytes":232,"dstbytes":8153,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":1,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":5,"srvcount":5,"serrorrate":0.2,"srvserrorrate":0.2,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":1.0,"diffsrvrate":0,"srvdiffhostrate":0,"dsthostcount":30,"dsthostsrvcount":255,"dsthostsamesrvrate":1.0,"dsthostdiffsrvrate":0,"dsthostsamesrcportrate":0.03,"dsthostsrvdiffhostrate":0.04,"dsthostserrorrate":0.03,"dsthostsrvserrorrate":0.01,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0.01},
+  // ── DoS ───────────────────────────────────────────────────────────────────
+  neptune:     {"duration":0,"protocoltype":"tcp","service":"private","flag":"S0","srcbytes":0,"dstbytes":0,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":0,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":123,"srvcount":6,"serrorrate":1.0,"srvserrorrate":1.0,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":0.05,"diffsrvrate":0.07,"srvdiffhostrate":0,"dsthostcount":255,"dsthostsrvcount":26,"dsthostsamesrvrate":0.10,"dsthostdiffsrvrate":0.05,"dsthostsamesrcportrate":0.0,"dsthostsrvdiffhostrate":0.0,"dsthostserrorrate":1.0,"dsthostsrvserrorrate":1.0,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0.0},
+  smurf:       {"duration":0,"protocoltype":"icmp","service":"ecr_i","flag":"SF","srcbytes":1032,"dstbytes":0,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":0,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":511,"srvcount":511,"serrorrate":0,"srvserrorrate":0,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":1.0,"diffsrvrate":0,"srvdiffhostrate":0,"dsthostcount":255,"dsthostsrvcount":255,"dsthostsamesrvrate":1.0,"dsthostdiffsrvrate":0,"dsthostsamesrcportrate":1.0,"dsthostsrvdiffhostrate":0,"dsthostserrorrate":0,"dsthostsrvserrorrate":0,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0},
+  teardrop:    {"duration":0,"protocoltype":"udp","service":"private","flag":"SF","srcbytes":28,"dstbytes":0,"land":0,"wrongfragment":3,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":0,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":10,"srvcount":10,"serrorrate":0,"srvserrorrate":0,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":1.0,"diffsrvrate":0,"srvdiffhostrate":0,"dsthostcount":255,"dsthostsrvcount":255,"dsthostsamesrvrate":1.0,"dsthostdiffsrvrate":0,"dsthostsamesrcportrate":1.0,"dsthostsrvdiffhostrate":0,"dsthostserrorrate":0,"dsthostsrvserrorrate":0,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0},
+  // ── U2R (privilege escalation) ─────────────────────────────────────────────
+  buffer:      {"duration":0,"protocoltype":"tcp","service":"telnet","flag":"SF","srcbytes":236,"dstbytes":486,"land":0,"wrongfragment":0,"urgent":0,"hot":2,"numfailedlogins":0,"loggedin":1,"numcompromised":235,"rootshell":1,"suattempted":0,"numroot":235,"numfilecreations":0,"numshells":2,"numaccessfiles":1,"ishostlogin":0,"isguestlogin":0,"count":1,"srvcount":1,"serrorrate":0,"srvserrorrate":0,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":1.0,"diffsrvrate":0,"srvdiffhostrate":0,"dsthostcount":6,"dsthostsrvcount":255,"dsthostsamesrvrate":0.17,"dsthostdiffsrvrate":0.03,"dsthostsamesrcportrate":1.0,"dsthostsrvdiffhostrate":0.02,"dsthostserrorrate":0,"dsthostsrvserrorrate":0,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0},
+  // ── Probe ─────────────────────────────────────────────────────────────────
+  ipsweep:     {"duration":0,"protocoltype":"icmp","service":"ecr_i","flag":"SF","srcbytes":8,"dstbytes":0,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":0,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":18,"srvcount":1,"serrorrate":0,"srvserrorrate":0,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":0.06,"diffsrvrate":0.07,"srvdiffhostrate":0,"dsthostcount":255,"dsthostsrvcount":3,"dsthostsamesrvrate":0.01,"dsthostdiffsrvrate":0.04,"dsthostsamesrcportrate":1.0,"dsthostsrvdiffhostrate":0,"dsthostserrorrate":0,"dsthostsrvserrorrate":0,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0},
+  nmap:        {"duration":0,"protocoltype":"tcp","service":"private","flag":"S0","srcbytes":0,"dstbytes":0,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":0,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":3,"srvcount":3,"serrorrate":1.0,"srvserrorrate":1.0,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":1.0,"diffsrvrate":0,"srvdiffhostrate":0,"dsthostcount":3,"dsthostsrvcount":3,"dsthostsamesrvrate":1.0,"dsthostdiffsrvrate":0,"dsthostsamesrcportrate":0,"dsthostsrvdiffhostrate":0,"dsthostserrorrate":1.0,"dsthostsrvserrorrate":1.0,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0},
+  satan:       {"duration":0,"protocoltype":"tcp","service":"private","flag":"REJ","srcbytes":0,"dstbytes":0,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":0,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":4,"srvcount":1,"serrorrate":0,"srvserrorrate":0,"rerrorrate":1.0,"srvrerrorrate":1.0,"samesrvrate":0.25,"diffsrvrate":1.0,"srvdiffhostrate":0,"dsthostcount":255,"dsthostsrvcount":10,"dsthostsamesrvrate":0.04,"dsthostdiffsrvrate":0.06,"dsthostsamesrcportrate":0,"dsthostsrvdiffhostrate":0,"dsthostserrorrate":0,"dsthostsrvserrorrate":0,"dsthostrerrorrate":1.0,"dsthostsrvrerrorrate":1.0},
+  portscan:    {"duration":0,"protocoltype":"tcp","service":"private","flag":"REJ","srcbytes":0,"dstbytes":0,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":0,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":511,"srvcount":511,"serrorrate":0,"srvserrorrate":0,"rerrorrate":1.0,"srvrerrorrate":1.0,"samesrvrate":1.0,"diffsrvrate":0,"srvdiffhostrate":0,"dsthostcount":255,"dsthostsrvcount":255,"dsthostsamesrvrate":1.0,"dsthostdiffsrvrate":0,"dsthostsamesrcportrate":0,"dsthostsrvdiffhostrate":0,"dsthostserrorrate":0,"dsthostsrvserrorrate":0,"dsthostrerrorrate":1.0,"dsthostsrvrerrorrate":1.0},
+  // ── R2L (remote to local) ─────────────────────────────────────────────────
+  guesspasswd: {"duration":0,"protocoltype":"tcp","service":"telnet","flag":"SF","srcbytes":4162,"dstbytes":3124,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":3,"loggedin":0,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":5,"srvcount":5,"serrorrate":0,"srvserrorrate":0,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":1.0,"diffsrvrate":0,"srvdiffhostrate":0,"dsthostcount":5,"dsthostsrvcount":5,"dsthostsamesrvrate":1.0,"dsthostdiffsrvrate":0,"dsthostsamesrcportrate":0.2,"dsthostsrvdiffhostrate":0,"dsthostserrorrate":0,"dsthostsrvserrorrate":0,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0},
+  warezclient: {"duration":0,"protocoltype":"tcp","service":"ftp_data","flag":"SF","srcbytes":27345,"dstbytes":0,"land":0,"wrongfragment":0,"urgent":0,"hot":0,"numfailedlogins":0,"loggedin":1,"numcompromised":0,"rootshell":0,"suattempted":0,"numroot":0,"numfilecreations":0,"numshells":0,"numaccessfiles":0,"ishostlogin":0,"isguestlogin":0,"count":1,"srvcount":1,"serrorrate":0,"srvserrorrate":0,"rerrorrate":0,"srvrerrorrate":0,"samesrvrate":1.0,"diffsrvrate":0,"srvdiffhostrate":0,"dsthostcount":8,"dsthostsrvcount":8,"dsthostsamesrvrate":1.0,"dsthostdiffsrvrate":0,"dsthostsamesrcportrate":0.12,"dsthostsrvdiffhostrate":0,"dsthostserrorrate":0,"dsthostsrvserrorrate":0,"dsthostrerrorrate":0,"dsthostsrvrerrorrate":0},
+};
+// weighted mix: 30% normal, rest spread across attack types
+const SIM_POOL = ['normal','normal','normal','neptune','neptune','smurf','teardrop','buffer','ipsweep','nmap','satan','portscan','guesspasswd','warezclient'];
+
+function loadSample(name){
+  document.getElementById('payload').value = JSON.stringify(SAMPLES[name],null,2);
+  toast('Loaded: '+name+' sample');
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let historyArr    = [];
+let attackChart   = null;
+let timelineChart = null;
+let liveInterval  = null;
+let liveRunning   = false;
+
+// ============================================================
+// SSE — live stats pushed from server
+// ============================================================
+function connectSSE(){
+  try{
+    const es=new EventSource('/api/events');
+    es.onmessage=function(e){
+      const d=JSON.parse(e.data);
+      document.getElementById('ls-total').textContent    =d.total;
+      document.getElementById('ls-anomalies').textContent=d.anomalies;
+      document.getElementById('ls-normal').textContent   =d.normal;
+      document.getElementById('ls-rate').textContent     =d.per_minute;
+      const pa=d.total?((d.anomalies/d.total)*100).toFixed(1):0;
+      const pn=d.total?((d.normal/d.total)*100).toFixed(1):0;
+      document.getElementById('ls-anomaly-pct').textContent=pa+'% of total';
+      document.getElementById('ls-normal-pct').textContent =pn+'% of total';
+      const h=Math.floor(d.uptime/3600),m=Math.floor((d.uptime%3600)/60),s=d.uptime%60;
+      document.getElementById('ls-uptime').textContent=
+        'Uptime: '+(h?h+'h ':'')+( m?m+'m ':'')+s+'s';
+    };
+  }catch(e){}
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded',function(){
+  fetchHealth(); fetchModelInfo(); initTimelineChart(); connectSSE(); loadPlots();
+  setInterval(fetchHealth,30000);
+});
+
+// ============================================================
+// HEALTH
+// ============================================================
+async function fetchHealth(){
+  const pill=document.getElementById('health-pill');
+  const txt =document.getElementById('health-text');
+  try{
+    const res=await fetch('/health');
+    const d=await res.json();
+    if(d.status==='ok'){
+      pill.className='health-pill ok'; txt.textContent='All models loaded';
+    }else{
+      pill.className='health-pill err';
+      txt.textContent='Degraded \u2014 '+Object.keys(d.load_errors||{}).length+' missing';
+    }
+  }catch{pill.className='health-pill err';txt.textContent='Unreachable';}
+}
+
+// ============================================================
+// MODEL INFO
+// ============================================================
+async function fetchModelInfo(){
+  try{
+    const res=await fetch('/model/info');
+    if(!res.ok){setModelInfoError();return;}
+    const d=await res.json();
+    document.getElementById('model-info-list').innerHTML=`
+      <li><span class="info-key">Deployed binary model</span><span class="info-val">${d.binary_model||'&mdash;'}</span></li>
+      <li><span class="info-key">Deployed multiclass model</span><span class="info-val">${d.multiclass_model||'&mdash;'}</span></li>
+      <li><span class="info-key">Input features</span><span class="info-val">${d.n_input_features_after_encoding||'&mdash;'}</span></li>
+      <li><span class="info-key">Default threshold</span><span class="info-val">${d.decision_thresholds?.default_threshold?.toFixed(3)||'&mdash;'}</span></li>
+      <li><span class="info-key">Recall threshold</span><span class="info-val">${d.decision_thresholds?.recall_favoring_threshold?.toFixed(3)||'&mdash;'}</span></li>
+      <li><span class="info-key">PCA recon threshold</span><span class="info-val">${d.decision_thresholds?.pca_reconstruction_threshold?.toFixed(5)||'&mdash;'}</span></li>
+      <li><span class="info-key">Attack classes</span><span class="info-val">${d.attack_classes?.length||'&mdash;'}</span></li>`;
+    if(d.attack_classes?.length)
+      document.getElementById('attack-tags').innerHTML=d.attack_classes.map(c=>`<span class="tag">${c}</span>`).join('');
+    const dt=d.decision_thresholds||{};
+    document.getElementById('threshold-body').innerHTML=[
+      ['Default (binary)','default_threshold'],
+      ['Recall-favoring','recall_favoring_threshold'],
+      ['PCA reconstruction','pca_reconstruction_threshold'],
+    ].map(([lbl,key])=>{
+      const v=dt[key]??null,pct=v!==null?Math.min(v*100,100):0;
+      return `<div class="threshold-item"><div class="threshold-row"><span>${lbl}</span>
+        <span style="font-weight:600;font-family:var(--mono);font-size:.78rem">${v!==null?v.toFixed(4):'&mdash;'}</span></div>
+        <div class="threshold-bar-bg"><div class="threshold-bar-fill" style="width:${pct}%"></div></div></div>`;
+    }).join('');
+
+    // Binary model comparison table
+    if(d.binary_comparison){
+      const bc=d.binary_comparison;
+      document.getElementById('best-binary-badge').textContent='Best: '+bc.best;
+      const cols=['Model','Accuracy','Precision','Recall','F1'];
+      const thead=`<tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+      const rows=bc.models.map(m=>{
+        const isBest=m.Model===bc.best;
+        return `<tr class="${isBest?'best-row':''}">`+cols.map(c=>{
+          const v=m[c];return `<td>${typeof v==='number'?(v*100).toFixed(1)+'%':v}</td>`;
+        }).join('')+'</tr>';
+      }).join('');
+      document.getElementById('binary-cmp-table').innerHTML=`<thead>${thead}</thead><tbody>${rows}</tbody>`;
+      document.getElementById('binary-comparison').style.display='block';
+    }
+
+    // Multiclass comparison table
+    if(d.multiclass_comparison){
+      const mc=d.multiclass_comparison;
+      document.getElementById('best-multi-badge').textContent='Best: '+mc.best;
+      const cols=['Model','Accuracy','Macro F1','Macro AUC (OVR)'];
+      const thead=`<tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+      const rows=mc.models.map(m=>{
+        const isBest=m.Model===mc.best;
+        return `<tr class="${isBest?'best-row':''}">`+cols.map(c=>{
+          const v=m[c];return `<td>${typeof v==='number'?(c==='Accuracy'?(v*100).toFixed(1)+'%':v.toFixed(4)):v??'&mdash;'}</td>`;
+        }).join('')+'</tr>';
+      }).join('');
+      document.getElementById('multi-cmp-table').innerHTML=`<thead>${thead}</thead><tbody>${rows}</tbody>`;
+      document.getElementById('multiclass-comparison').style.display='block';
+    }
+  }catch{setModelInfoError();}
+}
+function setModelInfoError(){
+  document.getElementById('model-info-list').innerHTML=
+    '<li><span class="info-key">Status</span><span class="info-val" style="color:var(--danger)">API unavailable</span></li>';
+}
+
+// ============================================================
+// TIMELINE CHART
+// ============================================================
+function initTimelineChart(){
+  const ctx=document.getElementById('timeline-chart').getContext('2d');
+  timelineChart=new Chart(ctx,{
+    type:'line',
+    data:{labels:[],datasets:[{label:'Anomaly Probability',data:[],
+      borderColor:'#3b82f6',pointBackgroundColor:[],pointBorderColor:[],
+      borderWidth:1.5,pointRadius:5,pointHoverRadius:7,tension:0.3,
+      fill:{target:'origin',above:'rgba(239,68,68,.05)',below:'rgba(16,185,129,.04)'}}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},
+      scales:{x:{display:false},y:{min:0,max:1,grid:{color:'rgba(30,58,95,.5)'},
+        ticks:{color:'#64748b',font:{size:10},callback:v=>(v*100).toFixed(0)+'%'}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Prob: ${(ctx.raw*100).toFixed(1)}%`}}}}
+  });
+}
+function pushTimeline(prob,isAnomaly){
+  const ds=timelineChart.data.datasets[0];
+  const labels=timelineChart.data.labels;
+  const MAX=30,color=isAnomaly?'#ef4444':'#10b981';
+  labels.push(''); ds.data.push(prob);
+  ds.pointBackgroundColor.push(color); ds.pointBorderColor.push(color);
+  if(labels.length>MAX){
+    labels.shift(); ds.data.shift();
+    ds.pointBackgroundColor.shift(); ds.pointBorderColor.shift();
+  }
+  ds.borderColor=isAnomaly?'#ef4444':'#3b82f6';
+  timelineChart.update('none');
+}
+
+// ============================================================
+// LIVE SIMULATION
+// ============================================================
+function toggleLive(){liveRunning?stopLive():startLive();}
+
+function startLive(){
+  liveRunning=true;
+  const btn=document.getElementById('live-btn');
+  btn.textContent='\u23F9 Stop Simulation'; btn.className='live-toggle-btn stop';
+  document.getElementById('live-dot').className='live-dot';
+  document.getElementById('ls-status').textContent='Simulating\u2026';
+  let lastT=Date.now(),cnt=0;
+  liveInterval=setInterval(async()=>{
+    const key=SIM_POOL[Math.floor(Math.random()*SIM_POOL.length)];
+    try{
+      const res=await fetch('/predict/full',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify(SAMPLES[key])});
+      const data=await res.json();
+      if(res.ok&&data.predictions?.length){
+        const p=data.predictions[0];
+        const isA=p.binary?.is_anomaly??false;
+        const prob=p.binary?.anomaly_probability??(isA?0.95:0.05);
+        const atk=p.attack_type?.predicted_class||'&mdash;';
+        const re=p.reconstruction?.reconstruction_error??null;
+        pushTimeline(prob,isA);
+        addFeedItem({isAnomaly:isA,prob,attackType:atk,source:key});
+        addHistory({endpoint:'/predict/full',isAnomaly:isA,prob,attackType:atk,
+                    reconErr:re,time:new Date().toLocaleTimeString(),source:'sim'});
+      }
+    }catch(e){console.error('sim',e);}
+    cnt++;
+    const el=(Date.now()-lastT)/1000;
+    if(el>=5){document.getElementById('rate-chip').textContent=(cnt/el).toFixed(1)+' req/s';cnt=0;lastT=Date.now();}
+  },1400);
+}
+function stopLive(){
+  liveRunning=false; clearInterval(liveInterval); liveInterval=null;
+  const btn=document.getElementById('live-btn');
+  btn.textContent='\u25B6 Start Simulation'; btn.className='live-toggle-btn start';
+  document.getElementById('live-dot').className='live-dot off';
+  document.getElementById('ls-status').textContent='Idle';
+  document.getElementById('rate-chip').textContent='0 req/s';
+}
+
+// ============================================================
+// LIVE FEED
+// ============================================================
+function addFeedItem(o){
+  const feed=document.getElementById('live-feed');
+  const emp=feed.querySelector('.empty-state'); if(emp)emp.remove();
+  const el=document.createElement('div');
+  el.className='feed-item '+(o.isAnomaly?'anomaly':'normal');
+  el.innerHTML=`<span class="feed-badge ${o.isAnomaly?'anomaly':'normal'}">${o.isAnomaly?'&#128680; Anomaly':'&#9989; Normal'}</span>
+    <span style="font-size:.74rem;color:var(--text2)">${o.attackType||'&mdash;'}</span>
+    <span class="feed-prob">${(o.prob*100).toFixed(1)}%</span>
+    <span class="feed-time">${new Date().toLocaleTimeString()}</span>`;
+  feed.prepend(el);
+  while(feed.children.length>15)feed.lastChild.remove();
+}
+
+// ============================================================
+// MANUAL PREDICTION
+// ============================================================
+async function runPredict(){
+  const btn=document.getElementById('run-btn');
+  const ep=document.getElementById('endpoint').value;
+  const rawOut=document.getElementById('raw-output');
+  let payload;
+  try{payload=JSON.parse(document.getElementById('payload').value);}
+  catch(e){toast('Invalid JSON: '+e.message,'error');return;}
+  btn.classList.add('loading'); btn.disabled=true; btn.textContent='\u23F3 Analysing\u2026';
+  rawOut.textContent='\u2026';
+  try{
+    const res=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await res.json();
+    rawOut.textContent=JSON.stringify(data,null,2);
+    if(!res.ok){toast(data.error||'API error','error');hideVerdict();return;}
+    processResult(data,ep);
+  }catch(e){rawOut.textContent=String(e);toast('Network error \u2014 is the server running?','error');hideVerdict();}
+  finally{btn.classList.remove('loading');btn.disabled=false;btn.textContent='\u26A1 Analyse Connection';}
+}
+function hideVerdict(){document.getElementById('verdict').style.display='none';}
+
+// ============================================================
+// PROCESS RESULT
+// ============================================================
+function processResult(data,ep){
+  const preds=data.predictions; if(!preds?.length)return;
+  const p=preds[0];
+  let isAnomaly=null,prob=null,attackType=null,attackConf=null,reconErr=null,reconAnom=null,topPreds=null;
+  if(ep==='/predict/full'){
+    if(p.binary){isAnomaly=p.binary.is_anomaly;prob=p.binary.anomaly_probability;}
+    if(p.attack_type){attackType=p.attack_type.predicted_class;attackConf=p.attack_type.confidence;}
+    if(p.reconstruction){reconErr=p.reconstruction.reconstruction_error;reconAnom=p.reconstruction.is_anomaly;}
+  }else if(ep==='/predict'){isAnomaly=p.is_anomaly;prob=p.anomaly_probability;
+  }else if(ep==='/predict/attack-type'){attackType=p.predicted_class;attackConf=p.confidence;topPreds=p.top_predictions;
+  }else if(ep==='/predict/reconstruction'){reconErr=p.reconstruction_error;reconAnom=p.is_anomaly;isAnomaly=reconAnom;}
+
+  // Verdict
+  if(isAnomaly!==null){
+    const v=document.getElementById('verdict');
+    v.style.display='block'; v.className='verdict '+(isAnomaly?'anomaly':'normal');
+    document.getElementById('verdict-emoji').textContent=isAnomaly?'&#128680;':'&#9989;';
+    document.getElementById('verdict-label').textContent=isAnomaly?'ANOMALY DETECTED':'Normal Traffic';
+    document.getElementById('verdict-label').style.color=isAnomaly?'var(--danger)':'var(--success)';
+    const meta=[]; if(prob!==null)meta.push('Prob: '+(prob*100).toFixed(1)+'%'); if(attackType)meta.push('Type: '+attackType);
+    document.getElementById('verdict-meta').textContent=meta.join(' \u00B7 ');
+    drawGauge(prob??(isAnomaly?1:0));
+  }else{hideVerdict();}
+
+  // Details
+  const dg=document.getElementById('detail-grid');
+  const items=[];
+  if(prob!==null)items.push(['Anomaly Prob',(prob*100).toFixed(2)+'%']);
+  if(attackType)items.push(['Attack Type',attackType]);
+  if(attackConf!==null)items.push(['Confidence',(attackConf*100).toFixed(1)+'%']);
+  if(reconErr!==null)items.push(['Recon Error',reconErr.toExponential(3)]);
+  if(reconAnom!==null)items.push(['Recon Flag',reconAnom?'&#128308; Anomaly':'&#128994; Normal']);
+  dg.innerHTML=items.map(([k,v])=>`<div class="detail-item"><div class="detail-key">${k}</div><div class="detail-val">${v}</div></div>`).join('');
+
+  if(isAnomaly!==null)pushTimeline(prob??(isAnomaly?0.9:0.05),isAnomaly);
+  if(isAnomaly!==null)addFeedItem({isAnomaly,prob:prob??(isAnomaly?0.9:0.05),attackType:attackType||'&mdash;',source:'manual'});
+  if(topPreds?.length)updateAttackChart(topPreds,null,null);
+  else if(attackType&&attackConf!==null)updateAttackChart(null,attackType,attackConf);
+  addHistory({endpoint:ep,isAnomaly,prob,attackType,reconErr,time:new Date().toLocaleTimeString(),source:'manual'});
+}
+
+// ============================================================
+// GAUGE
+// ============================================================
+function drawGauge(v){
+  const canvas=document.getElementById('gauge-canvas');
+  const ctx=canvas.getContext('2d');
+  canvas.width=160;canvas.height=88;
+  const cx=80,cy=82,r=65,st=Math.PI;
+  ctx.clearRect(0,0,160,88);
+  ctx.beginPath();ctx.arc(cx,cy,r,st,2*Math.PI);ctx.strokeStyle='#1e3a5f';ctx.lineWidth=12;ctx.lineCap='round';ctx.stroke();
+  const g=ctx.createLinearGradient(cx-r,0,cx+r,0);
+  g.addColorStop(0,'#10b981');g.addColorStop(.5,'#f59e0b');g.addColorStop(1,'#ef4444');
+  ctx.beginPath();ctx.arc(cx,cy,r,st,st+v*Math.PI);ctx.strokeStyle=g;ctx.lineWidth=12;ctx.lineCap='round';ctx.stroke();
+  document.getElementById('gauge-value').textContent=(v*100).toFixed(1)+'%';
+}
+
+// ============================================================
+// ATTACK CHART
+// ============================================================
+function updateAttackChart(topPreds,singleClass,singleConf){
+  const ph=document.getElementById('attack-placeholder');
+  const cv=document.getElementById('attack-chart');
+  let labels,values;
+  if(topPreds?.length){labels=topPreds.map(t=>t.class);values=topPreds.map(t=>+(t.probability*100).toFixed(2));ph.style.display='none';}
+  else if(singleClass&&singleConf!==null){labels=[singleClass,'other'];values=[+(singleConf*100).toFixed(2),+(100-singleConf*100).toFixed(2)];ph.style.display='none';}
+  else{ph.style.display='block';return;}
+  if(attackChart)attackChart.destroy();
+  attackChart=new Chart(cv,{type:'doughnut',data:{labels,datasets:[{data:values,
+    backgroundColor:['#3b82f6','#ef4444','#10b981','#f59e0b','#6366f1','#0ea5e9','#8b5cf6','#ec4899'],
+    borderWidth:2,borderColor:'#0d1526'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{
+      legend:{position:'right',labels:{color:'#94a3b8',font:{size:11,family:'Inter'},boxWidth:10,padding:8}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw.toFixed(1)}%`}}}}});
+}
+
+// ============================================================
+// HISTORY
+// ============================================================
+function addHistory(e){
+  historyArr.unshift(e);if(historyArr.length>25)historyArr.pop();renderHistory();
+}
+function renderHistory(){
+  const tb=document.getElementById('history-body');
+  if(!historyArr.length){tb.innerHTML='<tr><td colspan="8"><div class="empty-state">No predictions yet.</div></td></tr>';return;}
+  tb.innerHTML=historyArr.map((h,i)=>{
+    const EP_LABELS = {'/predict/full':'Full Analysis','/predict':'Binary','/predict/attack-type':'Attack Type','/predict/reconstruction':'PCA Recon'};
+    const res=h.isAnomaly===null?'<span class="badge warn">&mdash;</span>':h.isAnomaly?'<span class="badge anomaly">&#128680; Anomaly</span>':'<span class="badge normal">&#9989; Normal</span>';
+    const prob=h.prob!==null?(h.prob*100).toFixed(1)+'%':'&mdash;';
+    const epLabel=EP_LABELS[h.endpoint]||h.endpoint||'Full Analysis';
+    const re=h.reconErr!==null?h.reconErr.toExponential(2):'&mdash;';
+    const src=h.source==='sim'?'<span style="font-size:.68rem;color:var(--text3)">sim</span>':'<span style="font-size:.68rem;color:var(--accent)">manual</span>';
+    return `<tr><td style="color:var(--text3)">${historyArr.length-i}</td>
+      <td style="font-size:.74rem;color:var(--text2)">${epLabel}</td>
+      <td>${src}</td><td>${res}</td><td style="font-family:var(--mono)">${prob}</td>
+      <td style="font-size:.74rem">${h.attackType||'&mdash;'}</td>
+      <td style="font-family:var(--mono);font-size:.7rem">${re}</td>
+      <td style="color:var(--text3);white-space:nowrap">${h.time}</td></tr>`;
+  }).join('');
+}
+function clearHistory(){historyArr=[];renderHistory();}
+
+// ============================================================
+// UTILS
+// ============================================================
+function copyRaw(){navigator.clipboard.writeText(document.getElementById('raw-output').textContent).then(()=>toast('Copied!'));}
+
+// ============================================================
+// TRAINING PLOTS
+// ============================================================
+let _allPlots = {};
+
+async function loadPlots(){
+  try{
+    const res=await fetch('/api/plots');
+    if(!res.ok)throw new Error('no plots');
+    _allPlots=await res.json();
+    filterPlots('all');
+  }catch(e){
+    document.getElementById('plots-body').innerHTML=
+      `<div class="empty-state">No training plots found yet.<br><br>Run training with plots enabled:<br><code style="background:var(--surface2);padding:.15rem .5rem;border-radius:4px;font-size:.78rem">python run.py train --data Network_anomaly_data.csv</code></div>`;
+  }
+}
+
+function filterPlots(cat){
+  document.querySelectorAll('.plot-tab').forEach(t=>{
+    t.classList.toggle('active', (cat==='all'&&t.textContent==='All')||(t.textContent===cat)||(cat==='Feature Engineering'&&t.textContent==='Features'));
+  });
+  let plots=[];
+  if(cat==='all'){
+    Object.entries(_allPlots).forEach(([c,items])=>items.forEach(p=>plots.push({...p,cat:c})));
+  }else{
+    plots=(_allPlots[cat]||[]).map(p=>({...p,cat}));
+  }
+  const body=document.getElementById('plots-body');
+  if(!plots.length){
+    body.innerHTML='<div class="empty-state">No plots in this category yet.</div>';
+    return;
+  }
+  body.innerHTML=`<div class="plot-grid">${plots.map(p=>`
+    <div class="plot-card" onclick="openLightbox('/plots/${p.filename}','${p.title}')">
+      <img src="/plots/${p.filename}" alt="${p.title}" loading="lazy"
+           onerror="this.style.height='80px';this.style.background='var(--surface)'">
+      <div class="plot-label">${p.title}</div>
+      <div class="plot-cat-tag">${p.cat}</div>
+    </div>`).join('')}</div>`;
+}
+
+function openLightbox(src,title){
+  document.getElementById('lightbox-img').src=src;
+  document.getElementById('lightbox-title').textContent=title;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src='';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox();});
+function toast(msg,type){
+  const el=document.getElementById('toast');el.textContent=msg;
+  el.style.borderColor=type==='error'?'rgba(239,68,68,.4)':'var(--border)';
+  el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab){
+  document.getElementById('monitor-section').style.display = tab==='monitor' ? '' : 'none';
+  document.getElementById('train-section').style.display   = tab==='train'   ? '' : 'none';
+  document.getElementById('tab-monitor').classList.toggle('active', tab==='monitor');
+  document.getElementById('tab-train').classList.toggle('active',   tab==='train');
+  if(tab==='train') checkTrainStatus();
+}
+
+// ============================================================
+// TRAINING — DATA SOURCE
+// ============================================================
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file) uploadFile(file);
+}
+
+async function uploadFile(file){
+  if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.csv')){toast('Only .csv files are accepted','error');return;}
+  const pill=document.getElementById('train-status-pill');
+  pill.textContent='Uploading...';
+  const fd=new FormData();
+  fd.append('file',file);
+  try{
+    const res=await fetch('/api/upload',{method:'POST',body:fd});
+    const d=await res.json();
+    if(!res.ok){toast(d.error||'Upload failed','error');pill.textContent='Upload failed';return;}
+    setDataSelected(d.name,d.mb);
+    toast('Uploaded: '+d.name);
+  }catch(e){toast('Upload error: '+e.message,'error');}
+}
+
+async function useLocalData(){
+  const btn=document.getElementById('use-local-btn');
+  btn.disabled=true; btn.textContent='Checking...';
+  try{
+    const res=await fetch('/api/train/use-local',{method:'POST'});
+    const d=await res.json();
+    if(!res.ok){toast(d.error||'Not found','error');}
+    else{setDataSelected(d.name,d.mb); toast('Using local file: '+d.name);}
+  }catch(e){toast('Error: '+e.message,'error');}
+  finally{btn.disabled=false; btn.innerHTML='&#128197; Use local Network_anomaly_data.csv';}
+}
+
+function setDataSelected(name,mb){
+  document.getElementById('data-name').textContent=name;
+  document.getElementById('data-mb').textContent=mb;
+  document.getElementById('data-selected').style.display='block';
+  document.getElementById('start-train-btn').disabled=false;
+  document.getElementById('train-status-pill').textContent='Ready to train';
+}
+
+// ============================================================
+// TRAINING — START + LOG
+// ============================================================
+let _trainLogES = null;
+let _trAllPlots = {};
+
+async function startTraining(){
+  const btn=document.getElementById('start-train-btn');
+  btn.disabled=true;
+  document.getElementById('train-results').style.display='none';
+  resetSteps();
+  setLogText('');
+  document.getElementById('clear-log-btn').style.display='inline-block';
+  document.getElementById('reset-btn').style.display='none';
+
+  const noPlots=document.getElementById('opt-no-plots').checked;
+  try{
+    const res=await fetch('/api/train/start',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({no_plots:noPlots})});
+    const d=await res.json();
+    if(!res.ok){toast(d.error||'Could not start training','error');btn.disabled=false;return;}
+  }catch(e){toast('Error: '+e.message,'error');btn.disabled=false;return;}
+
+  document.getElementById('train-status-pill').textContent='Training running...';
+  setStepActive(1);
+  connectTrainLogs();
+}
+
+function connectTrainLogs(){
+  if(_trainLogES){ _trainLogES.close(); }
+  _trainLogES = new EventSource('/api/train/logs');
+  _trainLogES.onmessage = function(e){
+    const raw = e.data;
+    if(raw==='[HEARTBEAT]') return;
+    if(raw.startsWith('[STATUS:')){
+      const st=raw.replace('[STATUS:','').replace(']','');
+      onTrainFinished(st);
+      _trainLogES.close();
+      return;
+    }
+    appendLogLine(raw);
+    detectProgress(raw);
+  };
+  _trainLogES.onerror = function(){
+    appendLogLine('[CONNECTION ERROR — check server]','err');
+    _trainLogES.close();
+  };
+}
+
+// Detect which block we're in from log output
+function detectProgress(line){
+  const l=line.toLowerCase();
+  if(l.includes('block 1') || l.includes('data load') || l.includes('loading csv'))
+    setStepActive(1);
+  if(l.includes('block 2') && (l.includes('eda') || l.includes('exploratory')))
+    { setStepDone(1); setStepActive(2); }
+  if(l.includes('block 2') && l.includes('feature') || l.includes('engineer_and_select'))
+    { setStepDone(2); setStepActive(3); }
+  if(l.includes('block 3') || l.includes('ml model'))
+    { setStepDone(3); setStepActive(4); }
+  if(l.includes('training complete') || l.includes('saving artifacts'))
+    setStepActive(4);
+}
+
+async function onTrainFinished(status){
+  document.getElementById('start-train-btn').disabled=false;
+  document.getElementById('reset-btn').style.display='inline-block';
+  if(status==='done'){
+    setStepDone(4);
+    document.getElementById('train-status-pill').textContent='Training complete!';
+    toast('Training complete — models reloaded');
+    appendLogLine('\n✓ Training finished. Models hot-reloaded.','ok');
+    await loadTrainResults();
+  } else {
+    setStepErr(4);
+    document.getElementById('train-status-pill').textContent='Training failed — see log';
+    toast('Training failed','error');
+  }
+}
+
+async function loadTrainResults(){
+  document.getElementById('train-results').style.display='block';
+  // Refresh model comparison tables
+  try{
+    const res=await fetch('/model/info');
+    const d=await res.json();
+    if(d.binary_comparison) renderCmpTable('tr-binary-cmp-table','tr-binary-comparison','tr-best-binary-badge',d.binary_comparison,['Model','Accuracy','Precision','Recall','F1']);
+    if(d.multiclass_comparison) renderCmpTable('tr-multi-cmp-table','tr-multiclass-comparison','tr-best-multi-badge',d.multiclass_comparison,['Model','Accuracy','Macro F1','Macro AUC (OVR)']);
+    // Also refresh monitor section model info
+    fetchModelInfo();
+  }catch(e){}
+  // Refresh plots
+  try{
+    const res=await fetch('/api/plots');
+    _trAllPlots=await res.json();
+    filterTrainPlots('all');
+    loadPlots(); // also refresh monitor plots tab
+  }catch(e){
+    document.getElementById('tr-plots-body').innerHTML='<div class="empty-state">Plots not available (training ran with --skip-plots).</div>';
+  }
+}
+
+function renderCmpTable(tableId, sectionId, badgeId, data, cols){
+  document.getElementById(badgeId).textContent='Best: '+data.best;
+  const thead=`<tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+  const rows=data.models.map(m=>{
+    const isBest=m.Model===data.best;
+    return `<tr class="${isBest?'best-row':''}">`+cols.map(c=>{
+      const v=m[c];
+      if(typeof v!=='number') return `<td>${v??'—'}</td>`;
+      return `<td>${c==='Accuracy'?(v*100).toFixed(1)+'%':v.toFixed(4)}</td>`;
+    }).join('')+'</tr>';
+  }).join('');
+  document.getElementById(tableId).innerHTML=`<thead>${thead}</thead><tbody>${rows}</tbody>`;
+  document.getElementById(sectionId).style.display='block';
+}
+
+function filterTrainPlots(cat){
+  document.querySelectorAll('#tr-plot-tabs .plot-tab').forEach(t=>{
+    t.classList.toggle('active',(cat==='all'&&t.textContent==='All')||(t.textContent===cat)||(cat==='Feature Engineering'&&t.textContent==='Features'));
+  });
+  let plots=[];
+  if(cat==='all') Object.entries(_trAllPlots).forEach(([c,items])=>items.forEach(p=>plots.push({...p,cat:c})));
+  else plots=(_trAllPlots[cat]||[]).map(p=>({...p,cat}));
+  const body=document.getElementById('tr-plots-body');
+  if(!plots.length){body.innerHTML='<div class="empty-state">No plots in this category.</div>';return;}
+  body.innerHTML=`<div class="plot-grid">${plots.map(p=>`
+    <div class="plot-card" onclick="openLightbox('/plots/${p.filename}','${p.title}')">
+      <img src="/plots/${p.filename}" alt="${p.title}" loading="lazy"
+           onerror="this.style.height='60px';this.style.background='var(--surface)'">
+      <div class="plot-label">${p.title}</div>
+      <div class="plot-cat-tag">${p.cat}</div>
+    </div>`).join('')}</div>`;
+}
+
+// ============================================================
+// TRAINING — LOG HELPERS
+// ============================================================
+function appendLogLine(line, cls=''){
+  const box=document.getElementById('train-log');
+  if(box.textContent==='(log will appear here)') box.textContent='';
+  const el=document.createElement('div');
+  el.className='log-line'+(cls?' '+cls:'');
+  // Auto-classify line
+  if(!cls){
+    if(/error|traceback|exception/i.test(line)) el.className='log-line err';
+    else if(/warning|warn/i.test(line)) el.className='log-line warn';
+    else if(/saved|complete|ok|done|loaded/i.test(line)) el.className='log-line ok';
+    else if(/^={5,}|^#{5,}|block [123]/i.test(line)) el.className='log-line header';
+    else if(/\[server\]/i.test(line)) el.className='log-line server';
+  }
+  el.textContent=line;
+  box.appendChild(el);
+  box.scrollTop=box.scrollHeight;
+}
+function setLogText(t){ const b=document.getElementById('train-log'); b.innerHTML=''; if(t) b.textContent=t; }
+function clearTrainLog(){ setLogText('(log cleared)'); }
+
+// ============================================================
+// TRAINING — STEP INDICATORS
+// ============================================================
+function resetSteps(){
+  [1,2,3,4].forEach(n=>{
+    document.getElementById('sn'+n).className='step-num';
+    document.getElementById('ss'+n).textContent='—';
+    document.getElementById('ss'+n).className='step-status';
+  });
+}
+function setStepActive(n){
+  document.getElementById('sn'+n).className='step-num active';
+  document.getElementById('ss'+n).textContent='Running...';
+  document.getElementById('ss'+n).className='step-status active';
+}
+function setStepDone(n){
+  document.getElementById('sn'+n).className='step-num done';
+  document.getElementById('sn'+n).textContent='✓';
+  document.getElementById('ss'+n).textContent='Done';
+  document.getElementById('ss'+n).className='step-status done';
+}
+function setStepErr(n){
+  document.getElementById('sn'+n).className='step-num err';
+  document.getElementById('ss'+n).textContent='Error';
+  document.getElementById('ss'+n).className='step-status err';
+}
+
+// ============================================================
+// TRAINING — STATUS CHECK ON LOAD
+// ============================================================
+async function checkTrainStatus(){
+  try{
+    const res=await fetch('/api/train/status');
+    const d=await res.json();
+    if(d.status==='running'){
+      document.getElementById('train-status-pill').textContent='Training in progress...';
+      document.getElementById('start-train-btn').disabled=true;
+      document.getElementById('clear-log-btn').style.display='inline-block';
+      setStepActive(1);
+      connectTrainLogs();
+    } else if(d.status==='done'){
+      document.getElementById('train-status-pill').textContent='Last training completed';
+      document.getElementById('reset-btn').style.display='inline-block';
+    }
+    if(d.data_name){
+      setDataSelected(d.data_name, d.data_mb??'?');
+    }
+  }catch(e){}
+}
+
+async function resetTrainState(){
+  try{
+    await fetch('/api/train/reset',{method:'POST'});
+    resetSteps();
+    setLogText('(log will appear here)');
+    document.getElementById('train-status-pill').textContent='Select data to begin';
+    document.getElementById('start-train-btn').disabled=true;
+    document.getElementById('data-selected').style.display='none';
+    document.getElementById('reset-btn').style.display='none';
+    document.getElementById('clear-log-btn').style.display='none';
+    document.getElementById('train-results').style.display='none';
+    toast('Reset');
+  }catch(e){toast('Reset failed','error');}
+}
+</script>
+</body>
+</html>

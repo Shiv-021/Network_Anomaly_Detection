@@ -1,0 +1,52 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.2rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+.brand      { display: flex; align-items: center; gap: .75rem; }
+.brandIcon  {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  box-shadow: 0 0 16px rgba(59,130,246,.4);
+  animation: pulseIcon 3s ease-in-out infinite;
+}
+@keyframes pulseIcon {
+  0%,100% { box-shadow: 0 0 16px rgba(59,130,246,.4); }
+  50%      { box-shadow: 0 0 28px rgba(59,130,246,.7); }
+}
+.brandTitle { font-size: 1.05rem; font-weight: 700; }
+.brandSub   { font-size: .74rem; color: var(--text2); }
+
+.healthPill {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .35rem .85rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: all .3s;
+}
+.healthDot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text3);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
+.ok   { border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.06); }
+.ok   .healthDot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.warn { border-color: rgba(245,158,11,.4);  background: rgba(245,158,11,.06); }
+.warn .healthDot { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; animation: none; }
+.err  .healthDot { background: var(--danger); animation: none; }

@@ -1,0 +1,33 @@
+# Scratch output from running notebooks/Network_Anomaly_Detection_Standalone.ipynb --
+# it writes its own data copy, plots, and artifacts here specifically so it
+# never overwrites backend/app/ml_model_pipeline/model_artifacts|plots.
+notebooks/standalone_plots/*.png
+notebooks/standalone_plots/*.csv
+notebooks/standalone_artifacts/*.pkl
+notebooks/standalone_artifacts/*.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+frontend/node_modules/
+
+# Runtime state (created when the app actually runs, not source)
+.nad_server.pid
+logs/*.log
+uploads/*
+
+# Generated ML artifacts + plots -- regenerate via the dashboard's Train
+# Pipeline tab or `python run.py train`. Directory structure is preserved via
+# .gitkeep; only the generated file types inside are ignored.
+backend/app/ml_model_pipeline/model_artifacts/*.pkl
+backend/app/ml_model_pipeline/model_artifacts/*.json
+backend/app/ml_model_pipeline/plots/*.png
+backend/app/ml_model_pipeline/plots/*.csv
+
+# OS / editor
+.DS_Store
+.vscode/

@@ -1,0 +1,269 @@
+/* ── Design tokens ─────────────────────────────────────────────── */
+:root {
+  --bg:       #050a14;
+  --surface:  #0d1526;
+  --surface2: #121d30;
+  --border:   #1e3a5f;
+  --border2:  #243858;
+  --accent:   #3b82f6;
+  --accent2:  #6366f1;
+  --success:  #10b981;
+  --danger:   #ef4444;
+  --warn:     #f59e0b;
+  --text:     #e2e8f0;
+  --text2:    #94a3b8;
+  --text3:    #64748b;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Inter', system-ui, sans-serif;
+  --r:        12px;
+  --r-sm:     8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 20% 10%, rgba(59,130,246,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(99,102,241,.06) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ────────────────────────────────────────────────────── */
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+/* ── Card ──────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  margin-bottom: 1.2rem;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .9rem 1.3rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.card-title {
+  font-size: .84rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.card-body { padding: 1.3rem; }
+
+/* ── Typography / misc ─────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 1.75rem;
+  color: var(--text3);
+  font-size: .8rem;
+  line-height: 1.7;
+}
+
+/* ── Badges ────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: .16rem .5rem;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-anomaly { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; }
+.badge-normal  { background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.25); color: #6ee7b7; }
+.badge-warn    { background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.25); color: #fcd34d; }
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+.btn-primary {
+  padding: .7rem 1.4rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: var(--r-sm);
+  color: #fff;
+  font-size: .9rem;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: opacity .2s, transform .15s, box-shadow .2s;
+  box-shadow: 0 4px 20px rgba(59,130,246,.3);
+}
+.btn-primary:hover  { opacity: .92; transform: translateY(-1px); box-shadow: 0 6px 28px rgba(59,130,246,.45); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-secondary {
+  padding: .52rem 1.1rem;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  color: var(--text2);
+  font-size: .8rem;
+  font-weight: 500;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-secondary:disabled { opacity: .45; cursor: not-allowed; }
+
+.btn-icon {
+  font-size: .7rem;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: .18rem .5rem;
+  color: var(--text2);
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: border-color .2s, color .2s;
+}
+.btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Grids ─────────────────────────────────────────────────────── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+  margin-bottom: 1.2rem;
+}
+/* Monitor tab: form gets more space than the live panel */
+.monitor-grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 1.2rem;
+  margin-bottom: 1.2rem;
+  align-items: stretch;
+}
+/* Model info + Raw response/Thresholds row — sits below the now full-width
+   Attack Distribution card (see MonitorTab.jsx). */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+  margin-bottom: 1.2rem;
+}
+@media (max-width: 1050px) { .main-grid, .monitor-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px)  { .info-grid { grid-template-columns: 1fr; } }
+
+/* ── Info list ─────────────────────────────────────────────────── */
+.info-list { list-style: none; }
+.info-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: .45rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .78rem;
+  gap: .5rem;
+}
+.info-list li:last-child { border-bottom: none; }
+.info-key { color: var(--text2); flex-shrink: 0; }
+.info-val  { font-weight: 500; font-family: var(--mono); font-size: .74rem; text-align: right; word-break: break-all; }
+
+/* ── Tags ──────────────────────────────────────────────────────── */
+.tag-wrap { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .45rem; }
+.tag {
+  font-size: .66rem;
+  font-weight: 500;
+  padding: .16rem .5rem;
+  border-radius: 999px;
+  background: rgba(59,130,246,.12);
+  border: 1px solid rgba(59,130,246,.25);
+  color: #93c5fd;
+}
+
+/* ── Comparison tables ─────────────────────────────────────────── */
+.cmp-table { width: 100%; border-collapse: collapse; font-size: .73rem; margin-top: .5rem; }
+.cmp-table th {
+  text-align: left;
+  padding: .35rem .5rem;
+  color: var(--text3);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.cmp-table td { padding: .38rem .5rem; border-bottom: 1px solid rgba(30,58,95,.4); font-family: var(--mono); font-size: .71rem; }
+.cmp-table tr.best-row td { background: rgba(16,185,129,.07); color: #6ee7b7; }
+.cmp-table tr.best-row td:first-child { font-weight: 600; }
+.cmp-section { margin-top: .9rem; }
+.cmp-label {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: .3rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.best-badge {
+  font-size: .62rem;
+  padding: .1rem .4rem;
+  border-radius: 999px;
+  background: rgba(16,185,129,.15);
+  border: 1px solid rgba(16,185,129,.3);
+  color: #6ee7b7;
+}
+
+/* ── Plots gallery ─────────────────────────────────────────────── */
+.plot-tabs { display: flex; gap: .35rem; flex-wrap: wrap; }
+.plot-tab {
+  font-size: .72rem;
+  font-weight: 500;
+  padding: .28rem .7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all .2s;
+  font-family: var(--sans);
+}
+.plot-tab:hover   { border-color: var(--accent); color: var(--accent); }
+.plot-tab.active  { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.plot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-top: .9rem; }
+.plot-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color .2s, transform .15s;
+}
+.plot-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.plot-card img   { width: 100%; height: 180px; object-fit: cover; display: block; background: var(--bg); }
+.plot-label      { font-size: .73rem; font-weight: 500; padding: .4rem .6rem .1rem; color: var(--text); }
+.plot-cat-tag    { font-size: .63rem; padding: .15rem .5rem .4rem; color: var(--text3); }
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: var(--surface); }
+::-webkit-scrollbar-thumb  { background: var(--border2); border-radius: 3px; }
