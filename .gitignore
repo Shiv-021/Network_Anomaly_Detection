@@ -1,8 +1,8 @@
 # Scratch output from running notebooks/Network_Anomaly_Detection_Standalone.ipynb --
 # it writes its own data copy, plots, and artifacts here specifically so it
 # never overwrites backend/app/ml_model_pipeline/model_artifacts|plots.
-notebooks/standalone_plots/*.png
-notebooks/standalone_plots/*.csv
+# notebooks/standalone_plots/*.png
+# notebooks/standalone_plots/*.csv
 notebooks/standalone_artifacts/*.pkl
 notebooks/standalone_artifacts/*.json
 
@@ -31,3 +31,6 @@ backend/app/ml_model_pipeline/plots/*.csv
 # OS / editor
 .DS_Store
 .vscode/
+
+# Blog folder — local draft only, not pushed to the repo
+blog/
